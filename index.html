@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f8f7f3">
+<title>장면갈피 · 대화 발췌기</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+<nav id="mobileTabs" aria-label="작업 화면">
+<button data-view="edit" aria-pressed="true">편집</button>
+<button data-view="preview" aria-pressed="false">미리보기</button>
+</nav>
+<div class="desk">
+<section id="controls">
+<div class="box">
+<div class="line">
+<h2>대화 원문</h2>
+<button id="expand" class="plain" aria-label="원문 크게 보기">⛶</button>
+</div>
+<label for="source" class="sr">대화 원문</label>
+<div class="source-input">
+<textarea id="source" spellcheck="false" placeholder="대화와 지문을 붙여넣으세요">
+</textarea>
+</div>
+<div class="tools" id="inlineTools">
+</div>
+</div>
+<div class="box">
+<div class="line">
+<h2>카드 형식</h2>
+<button id="names" class="compact" aria-pressed="true">이름 표시</button>
+</div>
+<div class="modes" id="modes">
+<button data-mode="book" aria-pressed="true">❝　문집형</button>
+<button data-mode="chat" aria-pressed="false">☏　메시지형</button>
+</div>
+<div class="sizeRow">
+<label for="ratio">이미지 비율</label>
+<select id="ratio">
+<option value="free">변동</option>
+<option value="custom">자유</option>
+<option>1:1</option>
+<option>9:16</option>
+<option>4:5</option>
+<option>3:4</option>
+<option>16:9</option>
+</select>
+<span id="customRatio" hidden>
+<input id="ratioX" type="number" inputmode="decimal" step="any" value="1" aria-label="가로 비율"> : <input id="ratioY" type="number" inputmode="decimal" step="any" value="1" aria-label="세로 비율">
+</span>
+</div>
+<small id="ratioError" role="status">
+</small>
+<div class="slider">
+<label for="width">이미지 너비</label>
+<input id="width" type="range" min="300" max="900" value="840">
+<input type="number" inputmode="numeric" aria-label="이미지 너비 직접 입력" id="widthNum" min="300" max="900" value="840">
+<small>px</small>
+</div>
+<div id="chatOptions" hidden>
+<div class="padrow">
+<span>말풍선 안쪽 여백</span>
+<div id="pads">
+<button data-pad="8">좁게</button>
+<button data-pad="15" aria-pressed="true">보통</button>
+<button data-pad="24">넓게</button>
+</div>
+</div>
+<div id="chatPeople">
+</div>
+</div>
+</div>
+<div class="box">
+<h2>배경</h2>
+<div id="bgtypes" class="backgrounds">
+</div>
+<div id="photoOptions" hidden>
+<label class="upload">사진 선택<input type="file" id="photoInput" accept="image/*">
+</label>
+<small id="photoName">
+</small>
+</div>
+<div class="colors" id="bgColors">
+</div>
+<div id="presets" class="swatches">
+</div>
+<div id="gradientOpts">
+<div class="slider">
+<label for="angle">방향</label>
+<input id="angle" type="range" min="0" max="360" value="0">
+<input type="number" inputmode="numeric" aria-label="방향 직접 입력" id="angleNum" min="0" max="360" value="0">
+<small>°</small>
+</div>
+</div>
+<div class="slider">
+<label for="opacity">종이 불투명도</label>
+<input id="opacity" type="range" min="0" max="100" value="75">
+<input type="number" inputmode="numeric" aria-label="종이 불투명도 직접 입력" id="opacityNum" min="0" max="100" value="75">
+<small>%</small>
+</div>
+<div id="paperColor" class="colors">
+</div>
+<div class="slider">
+<label for="margin">종이 여백</label>
+<input id="margin" type="range" min="0" max="50" value="15">
+<input type="number" inputmode="numeric" aria-label="종이 여백 직접 입력" id="marginNum" min="0" max="50" value="15">
+<small>%</small>
+</div>
+<div class="slider">
+<label for="padding">내용 여백</label>
+<input id="padding" type="range" min="0" max="50" value="10">
+<input type="number" inputmode="numeric" aria-label="내용 여백 직접 입력" id="paddingNum" min="0" max="50" value="10">
+<small>%</small>
+</div>
+</div>
+<div class="box">
+<h2>글자 꾸미기</h2>
+<label class="field" for="font">글꼴</label>
+<select id="font">
+<option value="pret" selected>프리텐다드</option>
+<option value="sans">본고딕</option>
+<option value="baekmuk">백묵 굴림 (내장)</option>
+<option value="gulim">Microsoft 굴림</option>
+<option value="serif">본명조</option>
+</select>
+<div id="gulimHelp" hidden>
+<label class="upload">gulim.ttc 선택<input type="file" id="gulimFile" accept=".ttc,.ttf">
+</label>
+<small id="gulimMessage" role="status">
+</small>
+</div>
+<div class="slider">
+<label for="size">글자 크기</label>
+<input id="size" type="range" min="9" max="44" value="22">
+<input type="number" inputmode="numeric" aria-label="글자 크기 직접 입력" id="sizeNum" min="9" max="44" value="22">
+<small>px</small>
+</div>
+<div class="colors" id="inkColors">
+</div>
+<div id="speakers">
+</div>
+<details id="typography">
+<summary>글자 세부 설정</summary>
+<div class="slider">
+<label for="stretch">장평</label>
+<input id="stretch" type="range" min="50" max="150" step="1" value="95">
+<input id="stretchNum" aria-label="장평 직접 입력" type="number" min="50" max="150" step="1" value="95">
+<small>%</small>
+</div>
+<div class="slider">
+<label for="spaceWidth">단어 간격</label>
+<input id="spaceWidth" type="range" min="50" max="200" step="1" value="100">
+<input id="spaceWidthNum" aria-label="단어 간격 직접 입력" type="number" min="50" max="200" step="1" value="100">
+<small>%</small>
+</div>
+<div class="slider">
+<label for="tracking">자간</label>
+<input id="tracking" type="range" min="-10" max="25" step="0.1" value="-3.5">
+<input id="trackingNum" aria-label="자간 직접 입력" type="number" min="-10" max="25" step="0.1" value="-3.5">
+<small>%</small>
+</div>
+<div class="slider">
+<label for="leading">행간</label>
+<input id="leading" type="range" min="100" max="250" step="1" value="147">
+<input id="leadingNum" aria-label="행간 직접 입력" type="number" min="100" max="250" step="1" value="147">
+<small>%</small>
+</div>
+<div class="slider">
+<label for="paragraph">문단 간격</label>
+<input id="paragraph" type="range" min="0" max="250" step="1" value="100">
+<input id="paragraphNum" aria-label="문단 간격 직접 입력" type="number" min="0" max="250" step="1" value="100">
+<small>%</small>
+</div>
+</details>
+</div>
+</section>
+<section id="preview" class="preview box">
+<div class="line">
+<h2>미리보기</h2>
+<span id="dimensions">
+</span>
+</div>
+<div id="pageNav" hidden>
+<button id="prevPage" aria-label="이전 장">‹</button>
+<span id="pageCount" aria-live="polite">
+</span>
+<button id="nextPage" aria-label="다음 장">›</button>
+</div>
+<div class="stage">
+<canvas id="card" aria-label="대화 발췌 카드">
+</canvas>
+</div>
+<div class="actions">
+<button id="gallery" hidden disabled>사진에 저장</button>
+<button id="galleryAll" hidden disabled>전체 사진 저장</button>
+<button id="save" hidden>사진에 저장</button>
+<button id="saveAll" hidden>전체 사진 저장</button>
+</div>
+<p id="status" role="status">
+</p>
+</section>
+</div>
+</main>
+<dialog id="photoDialog">
+<div class="line">
+<span>이미지를 길게 눌러 사진에 저장해 주세요.</span>
+<button id="closePhotos">닫기</button>
+</div>
+<div id="photoList">
+</div>
+</dialog>
+<dialog id="editor">
+<div class="line">
+<h2>원문 크게 보기</h2>
+<button id="done" autofocus>완료</button>
+</div>
+<div class="tools" id="largeTools">
+</div>
+<div class="expanded-input">
+<textarea id="large" aria-label="확장된 대화 원문" spellcheck="false">
+</textarea>
+</div>
+</dialog>
+<script src="gulim.js">
+</script>
+<script src="zip.js">
+</script>
+<script src="app.js">
+</script>
+<script src="editor-session.js">
+</script>
+</body>
+</html>
