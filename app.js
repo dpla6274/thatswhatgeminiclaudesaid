@@ -78,12 +78,12 @@ function parsePage(text) {
       continue
     }
     const line = raw.trim(),
-      named = line.match(/^(?:\*\*)?([^:*：]{1,36}?)(?:\*\*)?\s*[:：](?:\*\*)?\s*(.*)$/);
+      named = line.match(/^(?:\*\*)?([^:*：|]{1,36}?)(?:\*\*)?\s*[:：|](?:\*\*)?\s*(.*)$/);
     const stage = /^\*(?!\*)[\s\S]*[^*]\*$/.test(line);
     if (named) {
       current = {
         who: named[1].trim(),
-        text: named[2]
+        text: named[2].trimStart()
       };
       blocks.push(current)
     } else if (/^(?:“[\s\S]*”|"[\s\S]*"|「[\s\S]*」)$/.test(line)) {
