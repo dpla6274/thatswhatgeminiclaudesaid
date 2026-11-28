@@ -122,8 +122,7 @@
 <select id="font">
 <option value="pret" selected>프리텐다드</option>
 <option value="sans">본고딕</option>
-<option value="baekmuk">백묵 굴림 (내장)</option>
-<option value="gulim">Microsoft 굴림</option>
+<option value="gulim">굴림</option>
 <option value="serif">본명조</option>
 </select>
 <div id="gulimHelp" hidden>
@@ -141,6 +140,18 @@
 <div class="colors" id="inkColors">
 </div>
 <div id="speakers">
+</div>
+<div id="colorSets">
+<label class="sub" for="setSelect">인물 색 세트</label>
+<div class="setrow">
+<select id="setSelect"></select>
+<button type="button" id="setSave">저장</button>
+<button type="button" id="setDelete">삭제</button>
+</div>
+<div class="setrow" id="setNameRow" hidden>
+<input id="setName" type="text" maxlength="30" placeholder="세트 이름" aria-label="새 세트 이름">
+<button type="button" id="setNameOk">확인</button>
+</div>
 </div>
 <details id="typography">
 <summary>글자 세부 설정</summary>

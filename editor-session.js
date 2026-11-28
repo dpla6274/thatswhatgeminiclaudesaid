@@ -124,6 +124,7 @@ $('mobileTabs').addEventListener('click', rememberEditor);
 $('typography').addEventListener('toggle', rememberEditor);
 if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
 
+restoreControls();
 bgControls();
 updateOutputs();
 restoreDraft();

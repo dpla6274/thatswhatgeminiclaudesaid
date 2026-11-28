@@ -1006,3 +1006,51 @@ dialog textarea#large {
     transform-origin: top left;
   }
 }
+
+.tools button.clear-source[data-armed] {
+  color: #a3364a;
+  border-color: #c98a96;
+  background: #fbeef0
+}
+
+#colorSets .sub {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  margin-top: 9px
+}
+
+.setrow {
+  display: flex;
+  gap: 5px;
+  margin-top: 5px
+}
+
+.setrow select,
+.setrow input[type=text] {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  padding: 4px 8px
+}
+
+.setrow button {
+  flex: none;
+  font-size: 12px;
+  padding: 4px 10px
+}
+
+#setDelete[data-armed] {
+  color: #a3364a;
+  border-color: #c98a96
+}
+
+@media(max-width:740px) {
+  .setrow button {
+    min-height: 32px
+  }
+
+  .setrow input[type=text] {
+    font-size: 16px
+  }
+}

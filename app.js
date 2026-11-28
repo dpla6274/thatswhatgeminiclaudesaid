@@ -12,11 +12,11 @@ const palettes = [
   ['잉크 하프톤', '#cfdfde', '#9dbdc8', '#253e62'],
   ['라일락 코랄', '#8c7ae6', '#e67a7a', '#fff2da']
 ];
+// 굴림: 기기에 Microsoft 굴림이 있거나 파일을 불러왔으면 그것을, 없으면 내장 백묵 굴림을 쓴다.
 const fonts = {
-  baekmuk: 'Baekmuk',
   pret: 'Pret',
   sans: 'Gothic',
-  gulim: 'MSSceneGulim',
+  gulim: 'MSSceneGulim, Baekmuk',
   serif: 'Book'
 };
 const people = new Map(),
@@ -30,8 +30,56 @@ const state = {
   palette: palettes[0].slice(1),
   ink: '#292532',
   marker: '#ffe194',
-  image: null
+  image: null,
+  colorSet: ''
 };
+
+// 꾸미기 설정은 기기(localStorage)에 보관해 새로고침이나 원문 삭제 뒤에도 유지한다.
+const settingsKey = 'scene-settings',
+  setsKey = 'scene-color-sets';
+const isHex = v => typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v);
+
+function readStore(key, fallback) {
+  try {
+    const value = JSON.parse(localStorage.getItem(key) || 'null');
+    return value ?? fallback;
+  } catch {
+    return fallback
+  }
+}
+
+function writeStore(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value))
+  } catch {}
+}
+
+function cleanPerson(v) {
+  if (!v || typeof v !== 'object') return null;
+  return {
+    color: isHex(v.color) ? v.color : colors[0],
+    bubble: isHex(v.bubble) ? v.bubble : '#ffffff',
+    right: v.right === true
+  };
+}
+const savedSettings = readStore(settingsKey, {});
+if (savedSettings && typeof savedSettings === 'object') {
+  const s = savedSettings;
+  if (['half', 'gradient', 'photo', 'solid'].includes(s.bg)) state.bg = s.bg;
+  if (Number.isInteger(s.preset) && s.preset >= 0 && s.preset < palettes.length) state.preset = s.preset;
+  if (Array.isArray(s.palette) && s.palette.length === 3 && s.palette.every(isHex)) state.palette = s.palette.slice();
+  if (isHex(s.ink)) state.ink = s.ink;
+  if (isHex(s.marker)) state.marker = s.marker;
+  if (typeof s.showNames === 'boolean') state.showNames = s.showNames;
+  if ([8, 15, 24].includes(s.pad)) state.pad = s.pad;
+  if (['book', 'chat'].includes(s.mode)) state.mode = s.mode;
+  if (typeof s.colorSet === 'string') state.colorSet = s.colorSet;
+  if (s.people && typeof s.people === 'object')
+    for (const [name, v] of Object.entries(s.people)) {
+      const p = cleanPerson(v);
+      if (p) people.set(name, p);
+    }
+}
 let pages = [
     []
   ],
@@ -113,16 +161,18 @@ function readBlocks() {
   updatePageNav();
   const blocks = pages.flat();
   const names = [...new Set(blocks.map(b => b.who).filter(Boolean))];
+  const activeSet = colorSets().find(set => set.name === state.colorSet);
   for (const n of names) {
     if (!people.has(n)) {
       const k = people.size;
-      people.set(n, {
+      people.set(n, cleanPerson(activeSet?.people[n]) || {
         color: colors[k % colors.length],
         right: false,
         bubble: '#ffffff'
       })
     }
   }
+  currentNames = names;
   $('speakers').replaceChildren();
   $('chatPeople').replaceChildren();
   $('chatOptions').hidden = state.mode !== 'chat';
@@ -213,12 +263,28 @@ for (const [toolbar, area] of [
     [$('inlineTools'), source],
     [$('largeTools'), large]
   ]) {
+  // 모바일 기본 확인창은 '확인' 터치가 아래 버튼(첫 번째 배경 프리셋 등)까지 눌리거나
+  // 페이지가 다시 불러와지는 일이 있어, 버튼을 한 번 더 누르는 방식으로 확인한다.
+  let disarm = 0;
+  const reset = () => {
+    clearTimeout(disarm);
+    delete clear.dataset.armed;
+    clear.textContent = '전체 삭제';
+  };
   const clear = button(toolbar, '전체 삭제', () => {
-    if (!area.value || !window.confirm('대화 원문을 모두 삭제할까요?')) return;
+    if (!area.value) return reset();
+    if (!clear.dataset.armed) {
+      clear.dataset.armed = '1';
+      clear.textContent = '한 번 더 눌러 삭제';
+      disarm = setTimeout(reset, 3000);
+      return;
+    }
+    reset();
     area.value = '';
     area.scrollTop = 0;
     sync(area);
   });
+  clear.addEventListener('blur', reset);
   clear.className = 'clear-source';
   clear.setAttribute('aria-label', '대화 원문 전체 삭제');
 }
@@ -323,7 +389,7 @@ $('photoInput').onchange = async e => {
 };
 colorControl($('inkColors'), '지문색', state.ink, v => state.ink = v);
 colorControl($('inkColors'), '형광펜색', state.marker, v => state.marker = v);
-let paperColor = '#fffdf9';
+let paperColor = isHex(savedSettings?.paper) ? savedSettings.paper : '#fffdf9';
 colorControl($('paperColor'), '종이 색상', paperColor, value => paperColor = value);
 const sliders = ['width', 'angle', 'size', 'margin', 'padding', 'opacity', 'tracking', 'stretch', 'spaceWidth', 'leading', 'paragraph'];
 
@@ -378,17 +444,24 @@ function unquote(text) {
 
 let gulimAvailable = false,
   gulimCheck = null;
-$('font').onchange = async () => {
-  schedule();
+// Microsoft 굴림을 찾는 동안에도 내장 백묵 굴림으로 바로 그리고, 찾으면 다시 그린다.
+async function prepareGulim() {
   if ($('font').value !== 'gulim') {
     $('gulimHelp').hidden = true;
     return
   }
-  if (!gulimCheck) gulimCheck = findGulim();
-  gulimAvailable = gulimAvailable || await gulimCheck;
+  if (!gulimCheck) gulimCheck = findGulim().catch(() => false);
+  if (!gulimAvailable && await gulimCheck) {
+    gulimAvailable = true;
+    loaded.delete(fonts.gulim);
+    schedule();
+  }
   $('gulimHelp').hidden = gulimAvailable || $('font').value !== 'gulim';
-  $('gulimMessage').textContent = '이 기기에서 사용할 Windows 굴림 파일을 선택해 주세요.';
+  $('gulimMessage').textContent = 'Microsoft 굴림이 없어 백묵 굴림으로 표시돼요. 파일을 선택하면 이 기기에서 Microsoft 굴림을 써요.';
+}
+$('font').onchange = () => {
   schedule();
+  prepareGulim();
 };
 $('gulimFile').onchange = async e => {
   const file = e.target.files[0];
@@ -397,7 +470,7 @@ $('gulimFile').onchange = async e => {
     const data = extractGulim(await file.arrayBuffer());
     await registerGulim(data);
     gulimAvailable = true;
-    loaded.delete('MSSceneGulim');
+    loaded.delete(fonts.gulim);
     try {
       await fontCache(data)
     } catch {}
@@ -802,6 +875,7 @@ let currentFile = null,
   buildingPhotos = false;
 
 function schedule() {
+  saveSettingsSoon();
   currentFile = null;
   batchFiles = null;
   $('gallery').disabled = true;
@@ -815,15 +889,6 @@ function schedule() {
   frame = requestAnimationFrame(async () => {
     const ticket = rev,
       f = fonts[$('font').value];
-    if (f === 'MSSceneGulim' && !gulimAvailable) {
-      card.width = Number($('width').value);
-      card.height = 110;
-      ctx.fillStyle = '#faf9f6';
-      ctx.fillRect(0, 0, card.width, 110);
-      $('dimensions').textContent = '';
-      $('status').textContent = '굴림 글꼴을 불러온 뒤 저장할 수 있어요.';
-      return
-    }
     if (!loaded.has(f)) loaded.set(f, Promise.all([document.fonts.load('400 30px ' + f, '한글'), document.fonts.load('700 30px ' + f, '한글')]).catch(() => {}));
     await loaded.get(f);
     if (ticket !== rev) return;
@@ -992,4 +1057,173 @@ $('galleryAll').onclick = async () => {
     buildingPhotos = false;
     $('galleryAll').disabled = !ready
   }
+};
+
+// ---- 설정 보관 ----
+const savedControls = ['width', 'angle', 'size', 'margin', 'padding', 'opacity', 'tracking', 'stretch', 'spaceWidth', 'leading', 'paragraph', 'ratio', 'ratioX', 'ratioY', 'font'];
+let settingsTimer = 0,
+  settingsReady = false,
+  currentNames = [];
+
+function saveSettings() {
+  clearTimeout(settingsTimer);
+  if (!settingsReady) return;
+  const values = {};
+  for (const id of savedControls) values[id] = $(id).value;
+  writeStore(settingsKey, {
+    bg: state.bg,
+    preset: state.preset,
+    palette: state.palette,
+    ink: state.ink,
+    marker: state.marker,
+    showNames: state.showNames,
+    pad: state.pad,
+    mode: state.mode,
+    paper: paperColor,
+    removeQuotes,
+    colorSet: state.colorSet,
+    people: Object.fromEntries(people),
+    values
+  });
+}
+
+function saveSettingsSoon() {
+  clearTimeout(settingsTimer);
+  settingsTimer = setTimeout(saveSettings, 200);
+}
+window.addEventListener('pagehide', saveSettings);
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) saveSettings()
+});
+
+function restoreControls() {
+  const values = savedSettings?.values;
+  if (values && typeof values === 'object')
+    for (const id of savedControls) {
+      const el = $(id),
+        v = values[id];
+      if (typeof v !== 'string' && typeof v !== 'number') continue;
+      if (id === 'font') {
+        // 예전 '백묵 굴림' 선택은 합쳐진 '굴림'으로 옮긴다.
+        const font = v === 'baekmuk' ? 'gulim' : String(v);
+        if (fonts[font]) el.value = font;
+      } else if (el.tagName === 'SELECT') {
+        if ([...el.options].some(o => o.value === String(v))) el.value = String(v);
+      } else if (Number.isFinite(Number(v))) el.value = String(v);
+    }
+  $('customRatio').hidden = $('ratio').value !== 'custom';
+  removeQuotes = savedSettings?.removeQuotes === true;
+  for (const b of document.querySelectorAll('.quote-toggle')) b.setAttribute('aria-pressed', String(removeQuotes));
+  for (const b of $('modes').children) b.setAttribute('aria-pressed', String(b.dataset.mode === state.mode));
+  for (const b of $('pads').children) b.setAttribute('aria-pressed', String(Number(b.dataset.pad) === state.pad));
+  $('names').setAttribute('aria-pressed', String(state.showNames));
+  $('names').textContent = state.showNames ? '이름 표시 ✓' : '이름 표시';
+  renderSets();
+  settingsReady = true;
+  prepareGulim();
+}
+
+// ---- 인물 색 세트 ----
+function colorSets() {
+  const sets = readStore(setsKey, []);
+  return Array.isArray(sets) ? sets.filter(s => s && typeof s.name === 'string' && s.people && typeof s.people === 'object') : [];
+}
+
+function renderSets() {
+  const select = $('setSelect'),
+    sets = colorSets();
+  if (state.colorSet && !sets.some(s => s.name === state.colorSet)) state.colorSet = '';
+  select.replaceChildren(new Option('세트 선택', ''), ...sets.map(s => new Option(s.name, s.name)));
+  select.value = state.colorSet;
+  $('setDelete').disabled = !state.colorSet;
+  resetSetDelete();
+}
+
+function snapshot(base = {}) {
+  const out = {
+    ...base
+  };
+  for (const n of currentNames) out[n] = {
+    ...people.get(n)
+  };
+  return out;
+}
+
+function flash(b, text) {
+  const original = b.dataset.label || b.textContent;
+  b.dataset.label = original;
+  b.textContent = text;
+  setTimeout(() => b.textContent = original, 1200);
+}
+$('setSelect').onchange = () => {
+  state.colorSet = $('setSelect').value;
+  $('setNameRow').hidden = true;
+  const set = colorSets().find(s => s.name === state.colorSet);
+  if (set)
+    for (const [name, v] of Object.entries(set.people)) {
+      const p = cleanPerson(v);
+      if (p) people.set(name, p);
+    }
+  renderSets();
+  readBlocks();
+};
+$('setSave').onclick = () => {
+  if (!state.colorSet) {
+    $('setNameRow').hidden = false;
+    $('setName').value = '';
+    $('setName').focus();
+    return;
+  }
+  const sets = colorSets(),
+    set = sets.find(s => s.name === state.colorSet);
+  if (!set) return renderSets();
+  set.people = snapshot(set.people);
+  writeStore(setsKey, sets);
+  flash($('setSave'), '저장됨');
+};
+
+function createSet() {
+  const name = $('setName').value.trim();
+  if (!name) return $('setName').focus();
+  const sets = colorSets(),
+    old = sets.find(s => s.name === name);
+  if (old) old.people = snapshot(old.people);
+  else sets.push({
+    name,
+    people: snapshot()
+  });
+  writeStore(setsKey, sets);
+  state.colorSet = name;
+  $('setNameRow').hidden = true;
+  renderSets();
+  saveSettingsSoon();
+  flash($('setSave'), '저장됨');
+}
+$('setNameOk').onclick = createSet;
+$('setName').onkeydown = e => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    createSet()
+  } else if (e.key === 'Escape') $('setNameRow').hidden = true;
+};
+let setDeleteTimer = 0;
+
+function resetSetDelete() {
+  clearTimeout(setDeleteTimer);
+  delete $('setDelete').dataset.armed;
+  $('setDelete').textContent = '삭제';
+}
+$('setDelete').onclick = () => {
+  if (!state.colorSet) return;
+  const b = $('setDelete');
+  if (!b.dataset.armed) {
+    b.dataset.armed = '1';
+    b.textContent = '한 번 더';
+    setDeleteTimer = setTimeout(resetSetDelete, 3000);
+    return;
+  }
+  writeStore(setsKey, colorSets().filter(s => s.name !== state.colorSet));
+  state.colorSet = '';
+  renderSets();
+  saveSettingsSoon();
 };
